@@ -13,7 +13,7 @@ d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
 
 # remove diacritics normalize('NFD', 'josé')
 
-def read_files() -> List[str]:
+def request_files() -> List[str]:
     files = input('Insira a localização dos ficheiros: ')
 
     input = True
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
         # Obter a lista de ficheiros do stdin
         if args.files is None:
-            args.files = read_files()
+            args.files = request_files()
 
         # Remover duplicados
         args.files = list(set(args.files))
