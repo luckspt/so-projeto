@@ -17,6 +17,7 @@ if __name__ == '__main__':
                                          números de ocorrências de cada palavra e de linhas \
                                          devolvidas de cada/todas as palavra(s), devolvendo-os.')
 
+    mutually_exclusive = parser.add_mutually_exclusive_group(required=True)
 
     parser.add_argument(
         '-a', '--all', action='store_true', help='Opção que define se o comando pesquisa as \
@@ -24,10 +25,10 @@ if __name__ == '__main__':
                                                   palavras ou todas as palavras. Por omissão, \
                                                   pesquisa as linhas contendo unicamente uma \
                                                   das palavras.')
-    parser.add_argument(
+    mutually_exclusive.add_argument(
         '-c', '--count', action='store_true', help='Opção que obtém o número de ocorrências \
                                                     das palavras a pesquisar.')
-    parser.add_argument(
+    mutually_exclusive.add_argument(
         '-l', '--lines', action='store_true', help='Opção que permite obter o número de \
                                                     linhas devolvidas. Caso a opção -a não \
                                                     esteja ativa, o número de linhas \
