@@ -69,25 +69,3 @@ if __name__ == '__main__':
 
 ###################################################################################################
 
-
-obj = {
-    'username': 'ok',
-    'content': '<@733730624350847029>',
-    'icon_url': 'https://cdn.discordapp.com/emojis/756547331025010709.gif',
-    'embeds': [ {
-        'title': 'sexo',
-        'description': 'الجنس ملحمة الجنس جدا أحب الجنس نعم!!!!!!!\nNAS CRIANÇAS NÃO TOCA NAS CRIANÇAAAAS! (assasino,bandido! Assassino, bandido! És um bandido! És um bandido pedófilo!) Não toca na criança\ ($',
-        'image': {
-            'url': 'https://c.tenor.com/8_e3rKfcpywAAAAC/zeri-hub-kawakie.gif'
-        },
-        'thumbnail': {
-            'url': 'https://c.tenor.com/TofJrkqD9JMAAAAd/impressed-awsome.gif'
-        },
-        'author': {
-            'name': 'ruca preto',
-            'url': 'https://cdn.discordapp.com/emojis/756547331025010709.gif',
-            'icon_url': 'https://cdn.discordapp.com/emojis/756547331025010709.gif'
-        }
-    }
-        ]
-    }
