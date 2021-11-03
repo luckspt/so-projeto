@@ -9,33 +9,40 @@ t2: Tuple[int, ...] = (1, 2.0, 'three')
 d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
 '''
 
-# remove diacritics normalize('NFD', 'josé')
-
-def read_files() -> List[str]:
-    files = input('Insira a localização dos ficheiros: ')
-    inp = 'dummy'
-    while inp:
-        inp = input()
-        files += f' {inp}'
-
-    return files.split()
-
-
-###################################################################################################
-
 if __name__ == '__main__':
-    parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f ficheiros]', description='Pesquisa até um máximo de três palavras em um ou mais ficheiros, devolvendo as linhas de texto que contêm unicamente uma das palavras (isoladamente) ou todas as palavras. Também, conta o número de ocorrências encontradas de cada palavra e o número de linhas devolvidas de cada palavra ou de todas as palavras. A pesquisa e contagem são realizadas em paralelo, em vários ficheiros')
-    parser.add_argument('palavras', nargs='+', help='as palavras a pesquisar no conteúdo dos ficheiros. O número máximo de palavras a pesquisar é de 3. ')
+    parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f \ficheiros]',
+                            description='Pesquisa até três palavras em pelo menos um ficheiro, \
+                                         devolvendo as linhas que contêm unicamente uma das ou \
+                                         todas as palavras. Conta e pesquisa paralelamente os \
+                                         números de ocorrências de cada palavra e de linhas \
+                                         devolvidas de cada/todas as palavra(s), devolvendo-os.')
+
+
     parser.add_argument(
-        '-a', '--all', action='store_true', help='opção que define se o resultado da pesquisa são as linhas de texto que contêm unicamente uma das palavras ou todas as palavras. Por omissão (ou seja, se a opção não for usada), somente as linhas contendo unicamente uma das palavras serão devolvidas.')
+        '-a', '--all', action='store_true', help='Opção que define se o comando pesquisa as \
+                                                  linhas de texto que contêm unicamente uma das \
+                                                  palavras ou todas as palavras. Por omissão, \
+                                                  pesquisa as linhas contendo unicamente uma \
+                                                  das palavras.')
     parser.add_argument(
-        '-c', '--count', action='store_true', help='opção que permite obter o número de ocorrências encontradas das palavras a pesquisar.')
+        '-c', '--count', action='store_true', help='Opção que obtém o número de ocorrências \
+                                                    das palavras a pesquisar.')
     parser.add_argument(
-        '-l', '--lines', action='store_true', help='opção que permite obter o número de linhas devolvidas da pesquisa. Caso a opção -a não esteja ativa, o número de linhas devolvido é por palavra.')
+        '-l', '--lines', action='store_true', help='Opção que permite obter o número de \
+                                                    linhas devolvidas. Caso a opção -a não \
+                                                    esteja ativa, o número de linhas \
+                                                    devolvido é por palavra.')
     parser.add_argument(
-        '-p', '--parallelization', type=int, default=1, help='opção que permite definir o nível de paralelização n do comando (ou seja, o número de processos (filhos)/threads que são utilizados para efetuar as pesquisas e contagens). Por omissão, deve ser utilizado apenas um processo (o processo pai) para realizar as pesquisas e contagens.')
+        '-p', '--parallelization', type=int, default=1, help='Opção que permite definir o nível de \
+                                                              paralelização n do comando. Por \
+                                                              omissão, não há paralelização.')
     parser.add_argument(
-        '-f', '--files', nargs='+', help='podem ser dados um ou mais ficheiros, sobre os quais é efetuada a pesquisa e contagem. Caso não sejam dados ficheiros na linha de comandos (ou seja, caso não seja passada a opção -f), estes devem ser lidos de stdin (o comando no início da sua execução pedirá ao utilizador quem são os ficheiros a processar).')
+            'palavras', nargs='+', help='As palavras a pesquisar no conteúdo dos ficheiros. \
+                                         Máximo 3 palavras.')
+    parser.add_argument(
+        '-f', '--files', nargs='+', help='Ficheiro(s), sobre o(s) qual(is) é efetuada a pesquisa e \
+                                          contagem. Por omissão, o comando pede o(s) ficheiro(s) \
+                                          ao utilizador.')
 
     args = parser.parse_args()
 
@@ -69,3 +76,13 @@ if __name__ == '__main__':
 
 ###################################################################################################
 
+# remove diacritics normalize('NFD', 'josé')
+
+def read_files() -> List[str]:
+    files = input('Insira a localização dos ficheiros: ')
+    inp = 'dummy'
+    while inp:
+        inp = input()
+        files += f' {inp}'
+
+    return files.split()
