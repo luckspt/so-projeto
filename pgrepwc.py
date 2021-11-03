@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 from unicodedata import normalize
 from typing import List
+from multiprocessing import Value
+from math import ceil
 
 '''
 l: List[int] = [1, 2, 3]
@@ -8,6 +10,37 @@ t1: Tuple[float, str, int] = (1.0, 'two', 3)
 t2: Tuple[int, ...] = (1, 2.0, 'three')
 d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
 '''
+
+# remove diacritics normalize('NFD', 'josé')
+
+def read_files() -> List[str]:
+    files = input('Insira a localização dos ficheiros: ')
+
+    input = True
+
+    while input:
+        input = input()
+        files += f' {input}'
+
+    return files.split() ##["t1.txt", "t2.txt"]
+
+def daddy(files, nr_children = None):
+    #Se houver paralelização
+    if nr_children:
+        #Arredonda a divisão inteira para excesso
+        max_files_per_child = ceil(len(files) / nr_children)
+
+        #Para cada filho pedido no comando
+        for child in range(nr_children):
+            #Inicializamos os ficheiros que lhe ficam atribuídos a 0
+            child_files = []
+
+            #Enquanto houverem ficheiros por distribuir
+            while len(files) > 0:
+                #Até atingirmos o máximo de ficheiros que podemos atribuir a este filho
+                for nr in range(max_files_per_child):
+                    #Retiramos um ficheiro dos ficheiros por distribuir e associamo-lo ao filho
+                    child_files.append(files.pop(0))
 
 if __name__ == '__main__':
     parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f \ficheiros]',
@@ -51,11 +84,10 @@ if __name__ == '__main__':
         if len(args.palavras) > 3:
             parser.error('Argument palavras must not be longer than 3.')
 
-        # -c e -l são mutuamente exclusivos
         if args.count and args.lines:
             parser.error('Arguments -c and -l are mutually exclusive.')
 
-        # estar antes de pedir os ficheiros permite uma melhor utilização
+        #Testar antes de pedir os ficheiros permite uma melhor utilização
         if args.parallelization < 1:
             parser.error('Argument -p must not be smaller than 1.')
 
@@ -73,14 +105,3 @@ if __name__ == '__main__':
         print(args.__dict__)
     except UserWarning as w:
         print(w)
-
-# remove diacritics normalize('NFD', 'josé')
-
-def read_files() -> List[str]:
-    files = input('Insira a localização dos ficheiros: ')
-    inp = 'dummy'
-    while inp:
-        inp = input()
-        files += f' {inp}'
-
-    return files.split()
