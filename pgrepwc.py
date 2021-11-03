@@ -11,36 +11,37 @@ t2: Tuple[int, ...] = (1, 2.0, 'three')
 d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
 '''
 
-# remove diacritics normalize('NFD', 'josé')
+# Remove diacritics normalize('NFD', 'josé')
 
 def request_files() -> List[str]:
-    files = input('Insira a localização dos ficheiros: ')
-
+    files = input('Insira o(s) ficheiro(s) a pesquisar: ')
     input = True
 
     while input:
         input = input()
         files += f' {input}'
 
-    return files.split() ##["t1.txt", "t2.txt"]
+    return files.split()
 
 def daddy(files, nr_children = None):
-    #Se houver paralelização
+    # Se houver paralelização
     if nr_children:
-        #Arredonda a divisão inteira para excesso
+        # Arredonda a divisão inteira para excesso
         max_files_per_child = ceil(len(files) / nr_children)
 
-        #Para cada filho pedido no comando
+        # Para cada filho pedido no comando (NOTA: enquanto houver filhos, há sempre ficheiros por distribuir)
         for child in range(nr_children):
-            #Inicializamos os ficheiros que lhe ficam atribuídos a 0
+            # Inicializamos os ficheiros que lhe ficam atribuídos a 0
             child_files = []
 
-            #Enquanto houverem ficheiros por distribuir
-            while len(files) > 0:
-                #Até atingirmos o máximo de ficheiros que podemos atribuir a este filho
-                for nr in range(max_files_per_child):
-                    #Retiramos um ficheiro dos ficheiros por distribuir e associamo-lo ao filho
-                    child_files.append(files.pop(0))
+            # Os primeiros (todos se o resto da divisão de ficheiros for 0) filhos recebem o número máximo de ficheiros
+            if len(files) >= max_files_per_child:
+                child_files = slice(files[max_files_per_child])
+                del files[:max_files_per_child]
+
+            # Se o resto da divisão de ficheiros for 0, o último filho fica com os restantes ficheiros por atribuir
+            else:
+                child_files = len(files)
 
 if __name__ == '__main__':
     parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f \ficheiros]',
@@ -87,7 +88,7 @@ if __name__ == '__main__':
         if args.count and args.lines:
             parser.error('Arguments -c and -l are mutually exclusive.')
 
-        #Testar antes de pedir os ficheiros permite uma melhor utilização
+        # Testar antes de pedir os ficheiros permite uma melhor utilização
         if args.parallelization < 1:
             parser.error('Argument -p must not be smaller than 1.')
 
