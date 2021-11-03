@@ -67,14 +67,11 @@ if __name__ == '__main__':
 
         # Paralelização não superior a qtd ficheiros
         if args.parallelization > len(args.files):
-            args.parallelization = args.files
+            args.parallelization = len(args.files)
 
         print(args.__dict__)
     except UserWarning as w:
         print(w)
-
-
-###################################################################################################
 
 # remove diacritics normalize('NFD', 'josé')
 
