@@ -1,8 +1,10 @@
 from argparse import ArgumentParser
-from unicodedata import normalize
-from typing import List
+from unicodedata import normalize, category
+from typing import List, Dict, Union, Generator, Tuple
 from multiprocessing import Value
-from math import ceil
+
+from colorama import init, Fore, Back, Style
+init() #autoreset=True
 
 '''
 l: List[int] = [1, 2, 3]
@@ -11,98 +13,112 @@ t2: Tuple[int, ...] = (1, 2.0, 'three')
 d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
 '''
 
-# Remove diacritics normalize('NFD', 'josé')
-
-def request_files() -> List[str]:
-    files = input('Insira o(s) ficheiro(s) a pesquisar: ')
-    input = True
-
-    while input:
-        input = input()
-        files += f' {input}'
+# Helpers
+def read_arr(text: str) -> List[str]:
+    files = input(text)
+    inp = 'true' # force do-while
+    while inp:
+        inp = input()
+        files += f' {inp}'
 
     return files.split()
 
-def daddy(files, nr_children = None):
-    # Se houver paralelização
-    if nr_children:
-        # Arredonda a divisão inteira para excesso
-        max_files_per_child = ceil(len(files) / nr_children)
+def chunks(lst: List, n: int) -> Generator[List[str], None, None]:
+    for i in range(n):
+        yield lst[i::n]
 
-        # Para cada filho pedido no comando (NOTA: enquanto houver filhos, há sempre ficheiros por distribuir)
-        for child in range(nr_children):
-            # Inicializamos os ficheiros que lhe ficam atribuídos a 0
-            child_files = []
+def read_file(path: str) -> Generator[str, None, None]:
+    with open(path) as f:
+        for line in f:
+            yield line
 
-            # Os primeiros (todos se o resto da divisão de ficheiros for 0) filhos recebem o número máximo de ficheiros
-            if len(files) >= max_files_per_child:
-                child_files = slice(files[max_files_per_child])
-                del files[:max_files_per_child]
+def strip_accents(s):
+   return ''.join(c for c in normalize('NFD', s)
+                  if category(c) != 'Mn')
 
-            # Se o resto da divisão de ficheiros for != 0, o último filho fica com os restantes ficheiros por atribuir
-            else:
-                child_files = files
-
-if __name__ == '__main__':
-    parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f \ficheiros]',
-                            description='Pesquisa até três palavras em pelo menos um ficheiro, \
-                                         devolvendo as linhas que contêm unicamente uma das ou \
-                                         todas as palavras. Conta e pesquisa paralelamente os \
-                                         números de ocorrências de cada palavra e de linhas \
-                                         devolvidas de cada/todas as palavra(s), devolvendo-os.')
+# Parsing
+def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
+    parser = ArgumentParser(description='Pesquisa até três palavras em pelo menos um ficheiro, \
+                                            devolvendo as linhas que contêm unicamente uma das \
+                                            ou todas as palavras. Conta e pesquisa paralelamente \
+                                            os números de ocorrências de cada palavra e de linhas \
+                                            devolvidas de cada/todas as palavra(s), devolvendo-os.')
 
     mutually_exclusive = parser.add_mutually_exclusive_group(required=True)
 
-    parser.add_argument(
-        '-a', '--all', action='store_true', help='Opção que define se o comando pesquisa as \
-                                                  linhas de texto que contêm unicamente uma das \
-                                                  palavras ou todas as palavras. Por omissão, \
-                                                  pesquisa as linhas contendo unicamente uma \
-                                                  das palavras.')
-    mutually_exclusive.add_argument(
-        '-c', '--count', action='store_true', help='Opção que obtém o número de ocorrências \
-                                                    das palavras a pesquisar.')
-    mutually_exclusive.add_argument(
-        '-l', '--lines', action='store_true', help='Opção que permite obter o número de \
-                                                    linhas devolvidas. Caso a opção -a não \
-                                                    esteja ativa, o número de linhas \
-                                                    devolvido é por palavra.')
-    parser.add_argument(
-        '-p', '--parallelization', type=int, default=1, help='Opção que permite definir o nível de \
-                                                              paralelização n do comando. Por \
-                                                              omissão, não há paralelização.')
-    parser.add_argument(
-            'palavras', nargs='+', help='As palavras a pesquisar no conteúdo dos ficheiros. \
-                                         Máximo 3 palavras.')
-    parser.add_argument(
-        '-f', '--files', nargs='+', help='Ficheiro(s), sobre o(s) qual(is) é efetuada a pesquisa e \
-                                          contagem. Por omissão, o comando pede o(s) ficheiro(s) \
-                                          ao utilizador.')
+    parser.add_argument('-a', '--all', action='store_true',
+                        help='Opção que define se o comando pesquisa as linhas de texto que contêm \
+                            unicamente uma das palavras ou todas as palavras. Por omissão, pesquisa \
+                            as linhas contendo unicamente uma das palavras.')
 
-    args = parser.parse_args()
+    mutually_exclusive.add_argument('-c', '--count', action='store_true',
+                                    help='Opção que obtém o número de ocorrências das palavras a pesquisar.')
 
+    mutually_exclusive.add_argument('-l', '--lines', action='store_true',
+                                    help='Opção que permite obter o número de linhas devolvidas. \
+                                        Caso a opção -a não esteja ativa, o número de linhas \
+                                        devolvido é por palavra.')
+
+    parser.add_argument('-p', '--parallelization', type=int, default=1,
+                        help='Opção que permite definir o nível de paralelização n do comando. \
+                            Por omissão, não há paralelização.')
+
+    parser.add_argument('palavras', nargs='+',
+                        help='As palavras a pesquisar no conteúdo dos ficheiros. \
+                            Máximo 3 palavras.')
+
+    parser.add_argument('-f', '--files', nargs='+',
+                        help='Ficheiro(s), sobre o(s) qual(is) é efetuada a pesquisa e contagem. \
+                            Por omissão, o comando pede o(s) ficheiro(s) ao utilizador.')
+
+    args = parser.parse_args().__dict__
+    validate_args(args)
+
+    return args
+
+def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
+    # Remove duplicates
+    args['palavras'] = set(args['palavras'])
+
+    # Normalize words
+    args['palavras'] = tuple(strip_accents(word) for word in args['palavras'])
+
+    # Enforce limits
+    if len(args['palavras']) > 3:
+        raise UserWarning('Argument palavras must not be longer than 3.')
+
+    if args['parallelization'] < 1:
+        raise UserWarning('Argument -p must not be smaller than 1.')
+
+    # Get files from stdin
+    if args['files'] is None:
+        args['files'] = read_arr('Insira o(s) ficheiro(s) a pesquisar: ')
+
+    # Remove duplicates
+    args['files'] = tuple(set(args['files']))
+
+    # Enforce parallelization limits
+    if args['parallelization'] > len(args['files']):
+        args['parallelization'] = len(args['files'])
+
+def search_file(path: str, words: List[str]):
+    for line in read_file(path):
+        normalized = normalize('NFD', line)
+        for word in words:
+            pass
+
+def main():
+    args = parse()
+
+    # Parent does it all when parallelization is 1
+    if args['parallelization'] > 1:
+        children_files = chunks(args['files'], args['parallelization'])
+
+        for file_path in children_files:
+            pass
+
+if __name__ == '__main__':
     try:
-        if len(args.palavras) > 3:
-            parser.error('Argument palavras must not be longer than 3.')
-
-        if args.count and args.lines:
-            parser.error('Arguments -c and -l are mutually exclusive.')
-
-        # Testar antes de pedir os ficheiros permite uma melhor utilização
-        if args.parallelization < 1:
-            parser.error('Argument -p must not be smaller than 1.')
-
-        # Obter a lista de ficheiros do stdin
-        if args.files is None:
-            args.files = request_files()
-
-        # Remover duplicados
-        args.files = list(set(args.files))
-
-        # Paralelização não superior a qtd ficheiros
-        if args.parallelization > len(args.files):
-            args.parallelization = len(args.files)
-
-        print(args.__dict__)
+        main()
     except UserWarning as w:
         print(w)
