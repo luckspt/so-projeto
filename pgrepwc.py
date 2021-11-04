@@ -1,19 +1,11 @@
-from re import compile, Pattern,
+from re import compile, Pattern
 from argparse import ArgumentParser
 from unicodedata import normalize, category
 from typing import List, Dict, Union, Generator, Tuple
 from re import findall
 from multiprocessing import Value
-
 from colorama import init, Fore, Back, Style
 init() #autoreset=True
-
-'''
-l: List[int] = [1, 2, 3]
-t1: Tuple[float, str, int] = (1.0, 'two', 3)
-t2: Tuple[int, ...] = (1, 2.0, 'three')
-d: Dict[str, int] = {'uno': 1, 'dos': 2, 'tres': 3}
-'''
 
 # Helpers
 def read_arr(text: str) -> List[str]:
@@ -61,7 +53,7 @@ def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
                                         Caso a opção -a não esteja ativa, o número de linhas \
                                         devolvido é por palavra.')
 
-    parser.add_argument('-p', '--parallelization', type=int, default=1,
+    parser.add_argument('-p', '--parallelization', type=int, default=0,
                         help='Opção que permite definir o nível de paralelização n do comando. \
                             Por omissão, não há paralelização.')
 
@@ -80,17 +72,14 @@ def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
 
 def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
     # Remove duplicates
-    args['palavras'] = set(args['palavras'])
-
-    # Normalize words
-    args['palavras'] = tuple(strip_accents(word) for word in args['palavras'])
+    args['palavras'] = tuple(set(strip_accents(word).lower() for word in args['palavras']))
 
     # Enforce limits
     if len(args['palavras']) > 3:
         raise UserWarning('Argument palavras must not be longer than 3.')
 
-    if args['parallelization'] < 1:
-        raise UserWarning('Argument -p must not be smaller than 1.')
+    if args['parallelization'] < 0:
+        raise UserWarning('Argument -p must not be smaller than 0.')
 
     # Get files from stdin
     if args['files'] is None:
@@ -101,47 +90,82 @@ def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
 
     # Enforce parallelization limits
     if args['parallelization'] > len(args['files']):
-        args['parallelization'] = len(args['files'])
+        raise UserWarning(f'Argument -p must not be greater than file count ({len(args["files"])}).')
 
-def compile_words_regex(words: List[str]) -> List[Pattern]:
-    return [ compile(f'\\b{word}\\b') for word in words ]
+def compile_words_regex(words: Tuple[str]) -> List[Tuple[str, Pattern]]:
+    return [ (word, compile(f'\\b{word}\\b')) for word in words ]
 
-def search_file(path: str, words: Tuple[str, List[Pattern]], all_words: bool):
-    contaLinhas = 0
-    occurrences = { word: [] for word in words[0] }
-    for i, line in enumerate(read_file(path)):                  #Lê linhas
-        normalized = strip_accents(line)                        #Tira acentos das palavras
+def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bool) -> Dict:
+    occurrences = { word: {} for word, _ in words }
+    for i, line in enumerate(read_file(path)):                              #Lê linhas
+        normalized_line = strip_accents(line).lower()                            #Tira acentos das palavras
 
-        line_word_occurences = { word: [] for word in words[0] }
-        for word, regex in words:                                      #Lê palavras pretendidas
-            line_word_occurences = findall(regex, line)
+        line_word_occurences = { word: [] for word, _ in words }
+        for word, regex in words:                                           #Lê palavras pretendidas
+            line_word_occurences[word] = findall(regex, normalized_line)
 
-            if all_words:                                       # ver se todas as palavras tem len != 0
-                conta
-            else:                                              #if len()=1 invés do ELSE
-                pass                                           # ver se ha mais de uma palavra com len != 0
+        # -a Ativo = APENAS 1 p/linha ***OU*** TODAS p/linha
+        # -a Não Ativo = APENAS 1 p/linha
 
-            if word in normalized:         #Verifica se palavras pretendidas estão nas linhas
-                occurrences[word].append(i)
+        it = (len(line_word_occurences[word]) != 0 for word in line_word_occurences)  # iterator
+        # Any consome até ao primeiro True: Not Any verifica se é o único
+        is_valid = any(it) and not any(it)
 
+        # Opção -a permite que seja apenas uma ou todas: verificar todas
+        if all_words and not is_valid:
+            is_valid = all(len(line_word_occurences[word]) != 0 for word in line_word_occurences) #Tem todas as palavras numa linha
+
+        # Processar a quantidade e ocorrências por linha
+        if is_valid:
+            for word in line_word_occurences:
+                qtty = len(line_word_occurences[word])
+                if qtty != 0:
+                    if i not in occurrences[word]:
+                        occurrences[word][i] = 0
+                    occurrences[word][i] += qtty
+
+    return occurrences
+
+def print_results(file_path: str, word_occurrences: Dict, all_words: bool, count: bool):
+    print(f'{Back.WHITE}{Fore.BLACK}Ficheiro {file_path}:{Style.RESET_ALL}')
+
+    if count:
+        for word in word_occurrences:
+            occurences = sum(word_occurrences[word][k] for k in word_occurrences[word])
+            print(f'A palavra {Fore.CYAN}{word}{Fore.RESET} ocorre {Fore.GREEN}{occurences}{Fore.RESET} vezes.')
+    else:
+        if all_words:
+            # numero de linhas devolvidas da pesquisa
+            keys = set(key for word in word_occurrences for key in word_occurrences[word].keys())
+            print(f'{Fore.GREEN}{len(keys)}{Fore.RESET} linhas respeitam a pesquisa.')
+        else:
+            # numero linhas devolvida é por palavra
+            for word in word_occurrences:
+                print(
+                    f'A palavra {Fore.CYAN}{word}{Fore.RESET} ocorre em {Fore.GREEN}{len(word_occurrences[word])}{Fore.RESET} linhas.')
 
 def main():
     args = parse()
 
-    # Parent does it all when parallelization is 1
-    if args['parallelization'] == 1:
-        # parent
-        pass
-    else:
-        children_files = chunks(args['files'], args['parallelization'])
-        words = (args['palavras'], compile_words_regex(args['palavras']))
+    words = compile_words_regex(args['palavras'])
 
-        for file_path in children_files:
-            search_file(file_path, words, args['all'])
+    # Parent does it all when parallelization is 0
+    if args['parallelization'] == 0:
+        for file_path in args['files']:
+            word_occurrences = search_file(file_path, words, args['all'])
+            print_results(file_path, words, args['all'], args['count'])
+    else:
+        print(args['files'])
+        children_files = list(chunks(args['files'], args['parallelization']))
+        print(children_files)
+        for child in children_files:
+            # criar criança
+            for file_path in child:
+                word_occurrences = search_file(file_path, words, args['all'])
+
 
 if __name__ == '__main__':
     try:
         main()
     except UserWarning as w:
         print(w)
-
