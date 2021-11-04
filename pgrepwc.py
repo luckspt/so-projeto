@@ -39,7 +39,7 @@ def daddy(files, nr_children = None):
                 child_files = slice(files[max_files_per_child])
                 del files[:max_files_per_child]
 
-            # Se o resto da divisão de ficheiros for 0, o último filho fica com os restantes ficheiros por atribuir
+            # Se o resto da divisão de ficheiros for != 0, o último filho fica com os restantes ficheiros por atribuir
             else:
                 child_files = files
 
