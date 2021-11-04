@@ -41,7 +41,7 @@ def daddy(files, nr_children = None):
 
             # Se o resto da divisão de ficheiros for 0, o último filho fica com os restantes ficheiros por atribuir
             else:
-                child_files = len(files)
+                child_files = files
 
 if __name__ == '__main__':
     parser = ArgumentParser(usage='pgrepwc [-a] [-c|-l] [-p n] {palavras} [-f \ficheiros]',
