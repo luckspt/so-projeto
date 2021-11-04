@@ -1,6 +1,8 @@
+from re import compile, Pattern,
 from argparse import ArgumentParser
 from unicodedata import normalize, category
 from typing import List, Dict, Union, Generator, Tuple
+from re import findall
 from multiprocessing import Value
 
 from colorama import init, Fore, Back, Style
@@ -101,24 +103,45 @@ def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
     if args['parallelization'] > len(args['files']):
         args['parallelization'] = len(args['files'])
 
-def search_file(path: str, words: List[str]):
-    for line in read_file(path):
-        normalized = normalize('NFD', line)
-        for word in words:
-            pass
+def compile_words_regex(words: List[str]) -> List[Pattern]:
+    return [ compile(f'\\b{word}\\b') for word in words ]
+
+def search_file(path: str, words: Tuple[str, List[Pattern]], all_words: bool):
+    contaLinhas = 0
+    occurrences = { word: [] for word in words[0] }
+    for i, line in enumerate(read_file(path)):                  #Lê linhas
+        normalized = strip_accents(line)                        #Tira acentos das palavras
+
+        line_word_occurences = { word: [] for word in words[0] }
+        for word, regex in words:                                      #Lê palavras pretendidas
+            line_word_occurences = findall(regex, line)
+
+            if all_words:                                       # ver se todas as palavras tem len != 0
+                conta
+            else:                                              #if len()=1 invés do ELSE
+                pass                                           # ver se ha mais de uma palavra com len != 0
+
+            if word in normalized:         #Verifica se palavras pretendidas estão nas linhas
+                occurrences[word].append(i)
+
 
 def main():
     args = parse()
 
     # Parent does it all when parallelization is 1
-    if args['parallelization'] > 1:
+    if args['parallelization'] == 1:
+        # parent
+        pass
+    else:
         children_files = chunks(args['files'], args['parallelization'])
+        words = (args['palavras'], compile_words_regex(args['palavras']))
 
         for file_path in children_files:
-            pass
+            search_file(file_path, words, args['all'])
 
 if __name__ == '__main__':
     try:
         main()
     except UserWarning as w:
         print(w)
+
