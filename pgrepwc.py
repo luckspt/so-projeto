@@ -1,8 +1,7 @@
-from re import compile, Pattern
+from re import compile, Pattern, findall
 from argparse import ArgumentParser
 from unicodedata import normalize, category
 from typing import List, Dict, Union, Generator, Tuple
-from re import findall
 from multiprocessing import Value
 from colorama import init, Fore, Back, Style
 init() #autoreset=True
