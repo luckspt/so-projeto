@@ -3,18 +3,25 @@ from argparse import ArgumentParser
 from unicodedata import normalize, category
 from typing import List, Dict, Union, Generator, Tuple
 from threading import Thread, Lock
-from colorama import init, Fore, Back, Style
-init() #autoreset=True
+from colorama import init, Fore, Style
+
+init() # Inicialização colorama
 
 mutex = Lock()
-total = [0, 0, 0]
+total = [0, 0, 0] # Inicialização do contador global das palavras ( 3 palavras)
 
-# Helpers
+### Helpers
 def read_list(text: str) -> List[str]:
+    """
+    Lê e divide uma linha do stdin.
+
+    :param text: String com a mensagem a mostrar ao utilizador.
+    :return: Lista de Strings com os elementos da linha.
+    """
     inp = input(text)
     files = inp
 
-    # Enquanto a linha não for vazia lê mais valores
+    # Enquanto a linha não for vazia, lê mais valores
     while inp:
         inp = input()
         files += f' {inp}'
@@ -22,21 +29,45 @@ def read_list(text: str) -> List[str]:
     # Partir os valores pelo espaço
     return files.split()
 
-def chunks(lst: List, n: int) -> Generator[List[str], None, None]:
+def chunks(lst: List[str], n: int) -> Generator[List[str], None, None]:
+    """
+    Gera dado número de combinações de elementos de uma lista.
+
+    :param lst: Lista a subdividir em combinações.
+    :param n: Int número máximo de elementos por combinação.
+    :return: Gerador com a Lista de Strings com combinações
+             de elementos de dada lista.
+    """
     for i in range(n):
         yield lst[i::n]
 
 def read_file(path: str) -> Generator[str, None, None]:
+    """
+    Lê um ficheiro de dado caminho.
+
+    :param path: String com o caminho do ficheiro a ler.
+    :return: Gerador com a String de uma linha do ficheiro.
+    """
     with open(path) as f:
-        for line in f:
-            yield line
+        yield f
 
 def strip_accents(s: str) -> str:
-   return ''.join(c for c in normalize('NFD', s)
-                  if category(c) != 'Mn')
+    """
+    Remove acentos de dada string.
 
-# Parsing
+    :param s: String a remover os acentos.
+    :return: String sem acentos.
+    """
+    return ''.join(c for c in normalize('NFD', s)
+                    if category(c) != 'Mn')
+
+### Parsing
 def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
+    """
+    Define o parser de argumentos.
+
+    :return: Dict com valores dos argumentos escolhidos pelo utilizador.
+    """
     parser = ArgumentParser(description='Pesquisa até três palavras em pelo menos um ficheiro, \
                                             devolvendo as linhas que contêm unicamente uma das \
                                             ou todas as palavras. Conta e pesquisa paralelamente \
@@ -72,12 +103,17 @@ def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
 
     args = parser.parse_args().__dict__
 
-    # Args is passed as reference!!
+    # Args é passado como referência
     validate_args(args)
 
     return args
 
 def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
+    """
+    Valida argumentos e remove duplicados.
+
+    :param args: Dicionário com argumentos por validar.
+    """
     # Remover duplicados
     args['palavras'] = tuple(set(strip_accents(word).lower() for word in args['palavras']))
 
@@ -100,10 +136,28 @@ def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
         raise UserWarning(f'Argument -p must not be greater than file count ({len(args["files"])}).')
 
 def compile_words_regex(words: Tuple[str]) -> List[Tuple[str, Pattern]]:
-    # usar o compile da biblioteca re para melhor desempenho, ao invés de definir o regex das palavras em cada linha de cada ficheiro
+    """
+    Compila diferentes formatos de palavras, reconhecendo-os como as mesmas palavras.
+    
+    :param words: Tuplo de Strings com palavras a compilar.
+    :return: Lista de tuplos com pares String palavra e a sua Pattern expressão regular.
+    """
+    # Usar o compile da biblioteca re para melhor desempenho, ao invés de definir 
+    # o regex das palavras em cada linha de cada ficheiro
     return [ (word, compile(f'\\b{word}\\b')) for word in words ]
 
 def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bool) -> Dict[str, Dict[int, int]]:
+    """
+    Pesquisa e conta ocorrências de dada(s) palavra(s) num ficheiro.
+
+    :param path: String com o caminho do ficheiro.
+    :param words: Lista de tuplos com pares String palavra e a sua Pattern
+                  expressão regular a pesquisar/contar.
+    :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
+                      contabilizar linhas com todas as palavras dadas.
+    :return: Dicionário com as ocorrências de cada palavra por linha.
+    """
+    
     # Dicionário das ocorrências das palavras em cada linha
     occurrences = { word: {} for word, _ in words }
     '''
@@ -138,31 +192,45 @@ def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bo
         is_valid = any(it) and not any(it)
 
         # Sem o parâmetro -a, só pode haver uma palavra por linha, ou seja o valor de is_valid
-        # Mas com o parâmetro -a, ou all_words no contexto da função, ativo, pode ser apenas uma palavra na linha ou todas as palavras nessa linha
+        # Mas com o parâmetro -a, ou all_words no contexto da função, ativo, pode ser apenas
+        # uma palavra na linha ou todas as palavras nessa linha
         if all_words and not is_valid:
-            # Assim, reescreve-se o valor de is_valid para que o seu significado seja se todas as palavras estão presentes na linha
+            # Assim, reescreve-se o valor de is_valid para que o seu significado seja se todas
+            # as palavras estão presentes na linha
             is_valid = all(diff_zero)
 
-        # Após a validação do argumento -a, só se conta estas ocorrências se a validação tiver resultado positivo
+        # Após a validação do argumento -a, só se conta estas ocorrências se a
+        # validação tiver resultado positivo
         if is_valid:
-            # Agora adiciona-se ao dicionário occurrences os resultados da linha atual, para cada palavra
+            # Agora adiciona-se ao dicionário occurrences os resultados
+            # da linha atual, para cada palavra
             for word in line_word_occurrences:
-                # só se insere se houver ocorrência(s) da palavra na linha
+                # Só se insere se houver ocorrência(s) da palavra na linha
                 if line_word_occurrences[word] != 0:
                     # i representa o índice da linha
                     occurrences[word][i] = line_word_occurrences[word]
 
     return occurrences
 
-def print_results(words: List[str], all_words: bool, count: bool, val: List[str] = None):
+def print_results(words: List[str], all_words: bool, count: bool, val: List[str] = None) -> None:
+    """
+    Imprime resultados para o stdout.
+
+    :param words: Lista de Strings com palavra(s).
+    :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
+                      com todas as palavras dadas.
+    :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
+                  e cujo False a quantidade de linhas.
+    :param val: Lista de Strings com valores a escrever.
+    """
     if count:
         for i, word in enumerate(words):
-            # Somar todas as ocorrências de todas as
+            # Qtd ocorrências
             print(f'\tA palavra {Fore.CYAN}{word}{Fore.RESET} ocorre {Fore.GREEN}{val[i] if val else total[i]}{Fore.RESET} vezes.')
     else:
         # Argumento -l
         if all_words:
-            # numero de linhas devolvidas da pesquisa
+            # Total linhas que respeitam a procura
             print(f'\t{Fore.GREEN}{val[0] if val else total[0]}{Fore.RESET} linhas respeitam a pesquisa.')
         else:
             # numero linhas devolvida é por palavra
@@ -170,7 +238,16 @@ def print_results(words: List[str], all_words: bool, count: bool, val: List[str]
                 print(
                     f'\tA palavra {Fore.CYAN}{word}{Fore.RESET} ocorre em {Fore.GREEN}{val[i] if val else total[i]}{Fore.RESET} linhas.')
 
-def commit_results(word_occurrences: Dict, all_words: bool, count: bool):
+def commit_results(word_occurrences: Dict, all_words: bool, count: bool) -> List[int]:
+    """
+    Calcula e regista os resultados globais.
+
+    :param word_occurrences: Dicionário com as ocorrências das palavras em cada linha.
+    :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
+                      com todas as palavras dadas.
+    :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
+                  e cujo False a quantidade de linhas.
+    """
     ret = []
     # Argumento -c
     if count:
@@ -200,7 +277,18 @@ def commit_results(word_occurrences: Dict, all_words: bool, count: bool):
                 mutex.release()
     return ret
 
-def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words: bool, count: bool):
+def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words: bool, count: bool) -> None:
+    """
+    Processa e imprime resultados da pesquisa/contagem de dadas palavras em dados ficheiros.
+
+    :param files: Lista de Strings com o caminho dos ficheiros.
+    :param words: Lista de tuplos com pares String palavra e a sua Pattern
+                  expressão regular a pesquisar/contar.
+    :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
+                      com todas as palavras dadas.
+    :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
+                  e cujo False a quantidade de linhas.
+    """
     for file_path in files:
         # Pesquisar e contar as palavras
         word_occurrences = search_file(file_path, words, all_words)
@@ -214,6 +302,10 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
         mutex.release()
 
 def main():
+    """
+    Processa e divide a pesquisa/contagem de ficheiros por threads (se aplicável).
+
+    """
     args = parse()
 
     words = compile_words_regex(args['palavras'])
@@ -248,43 +340,3 @@ if __name__ == '__main__':
         main()
     except UserWarning as w:
         print(w)
-
-#Palavras "aa", "bb", "cc"
-#Com o -a:
-#   aa bb CC DD EE  #Conta porque tem todas
-#   aa bb DD EE FF  #Não conta porque tem apenas 2
-#   aa DD EE FF GG  #Conta porque só tem 1
-#Sem o -a:
-#   aa bb cc dd ee  #Não conta porque tem todas
-#   aa bb dd ee ff  #Não conta porque tem apenas 2
-#   aa dd ee ff gg  #Conta porque só tem 1
-
-#Com o -l:
-#(Com -a ativo)
-#Nº total de linhas encontrada
-#   Total: X
-#(Com -a não ativo)
-#Nº total de linhas encontradas p/palavra
-#   aa: X
-#   bb: Y
-#   cc: Z
-
-
-
-# pesquisa até um máximo de três palavras em um ou mais ficheiros, devolvendo as linhas de
-# texto que contêm unicamente uma das palavras (isoladamente) ou todas as palavras. Também,
-# conta o número de ocorrências encontradas de cada palavra e o número de linhas devolvidas de
-# cada palavra ou de todas as palavras
-
-# Dar return a:
-# - Quantas linhas contêm unicamente uma das palavras ou todas as palavras
-# - Nº de ocorrências por palavra
-# - Nº de linhas por palavra ou todas as palavras
-#
-# Quando -a está ativo:             |  Quando -a não está ativo :
-# - Total linhas só com 1 palavra   |  - Totla das linas só com 1 palavra e com todas
-#                                       V V V V V V V V V V V V
-# Quando -l está ativo com o -a     |  Quando -l está ativo sem o -a
-# - Total de linhas                 |  - Total de linhas por palavra
-#
-# Quando -c está ativo:
