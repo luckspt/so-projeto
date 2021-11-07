@@ -59,7 +59,7 @@ def strip_accents(s: str) -> str:
     :param s: String a remover os acentos.
     :return: String sem acentos.
     """
-   return ''.join(c for c in normalize('NFD', s)
+    return ''.join(c for c in normalize('NFD', s)
                   if category(c) != 'Mn')
 
 ### Parsing
