@@ -233,7 +233,7 @@ def print_results(words: List[str], all_words: bool, count: bool, val: List[str]
                 print(
                     f'\tA palavra {Fore.CYAN}{word}{Fore.RESET} ocorre em {Fore.GREEN}{val[i] if val else total[i]}{Fore.RESET} linhas.')
 
-def commit_results(word_occurrences: Dict, all_words: bool, count: bool):
+def commit_results(word_occurrences: Dict[str, Dict[int, int]], all_words: bool, count: bool):
     """
     Calcula e regista os resultados globais.
 
@@ -291,7 +291,6 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
         vals = commit_results(word_occurrences, all_words, count)
         # Imprimir resultados
 
-        # todo mutex?
         mutex.acquire()
         print(f'{Fore.LIGHTMAGENTA_EX}Ficheiro {file_path}:{Style.RESET_ALL}')
         print_results(word_occurrences.keys(), all_words, count, vals)
@@ -300,7 +299,6 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
 def main():
     """
     Processa e divide a pesquisa/contagem de ficheiros por processos (se aplicável).
-
     """
     args = parse()
 

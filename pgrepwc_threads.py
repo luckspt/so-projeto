@@ -49,7 +49,8 @@ def read_file(path: str) -> Generator[str, None, None]:
     :return: Gerador com a String de uma linha do ficheiro.
     """
     with open(path) as f:
-        yield f
+        for line in f:
+            yield line
 
 def strip_accents(s: str) -> str:
     """
@@ -238,7 +239,7 @@ def print_results(words: List[str], all_words: bool, count: bool, val: List[str]
                 print(
                     f'\tA palavra {Fore.CYAN}{word}{Fore.RESET} ocorre em {Fore.GREEN}{val[i] if val else total[i]}{Fore.RESET} linhas.')
 
-def commit_results(word_occurrences: Dict, all_words: bool, count: bool) -> List[int]:
+def commit_results(word_occurrences: Dict[str, Dict[int, int]], all_words: bool, count: bool) -> List[int]:
     """
     Calcula e regista os resultados globais.
 
@@ -304,7 +305,6 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
 def main():
     """
     Processa e divide a pesquisa/contagem de ficheiros por threads (se aplicável).
-
     """
     args = parse()
 
