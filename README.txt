@@ -5,7 +5,6 @@ Grupo 19 - 07/11/2021
 56941 - Bruno Gonzalez
 
 Funcionalidades:
-
 • Suporta paralelismo de processos (pgrepwc.py) e de threads (pgrepwc_threads.py).
 • Garantia de isenção de repetições da pesquisa/contagem de palavras com o método chunks.
 • Garantia de isenção de repetições de ficheiros a pesquisar com o método validate_args.
