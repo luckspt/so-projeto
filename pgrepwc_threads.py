@@ -2,12 +2,12 @@ from re import compile, Pattern, findall
 from argparse import ArgumentParser
 from unicodedata import normalize, category
 from typing import List, Dict, Union, Generator, Tuple
-from multiprocessing import Array, Process, Lock
+from threading import Thread, Lock
 from colorama import init, Fore, Back, Style
 init() #autoreset=True
 
 mutex = Lock()
-total = Array("i", 3) # {0,0,0}
+total = [0, 0, 0]
 
 # Helpers
 def read_list(text: str) -> List[str]:
@@ -208,7 +208,6 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
         vals = commit_results(word_occurrences, all_words, count)
         # Imprimir resultados
 
-        # todo mutex?
         mutex.acquire()
         print(f'{Fore.LIGHTMAGENTA_EX}Ficheiro {file_path}:{Style.RESET_ALL}')
         print_results(word_occurrences.keys(), all_words, count, vals)
@@ -230,7 +229,7 @@ def main():
 
         processos = []
         for child_files in children_files:
-            processos.append( Process(target=process_files, args=(child_files, words, args['all'], args['count'])) )
+            processos.append( Thread(target=process_files, args=(child_files, words, args['all'], args['count'])) )
 
         for i in processos:
             i.start()
@@ -249,3 +248,43 @@ if __name__ == '__main__':
         main()
     except UserWarning as w:
         print(w)
+
+#Palavras "aa", "bb", "cc"
+#Com o -a:
+#   aa bb CC DD EE  #Conta porque tem todas
+#   aa bb DD EE FF  #Não conta porque tem apenas 2
+#   aa DD EE FF GG  #Conta porque só tem 1
+#Sem o -a:
+#   aa bb cc dd ee  #Não conta porque tem todas
+#   aa bb dd ee ff  #Não conta porque tem apenas 2
+#   aa dd ee ff gg  #Conta porque só tem 1
+
+#Com o -l:
+#(Com -a ativo)
+#Nº total de linhas encontrada
+#   Total: X
+#(Com -a não ativo)
+#Nº total de linhas encontradas p/palavra
+#   aa: X
+#   bb: Y
+#   cc: Z
+
+
+
+# pesquisa até um máximo de três palavras em um ou mais ficheiros, devolvendo as linhas de
+# texto que contêm unicamente uma das palavras (isoladamente) ou todas as palavras. Também,
+# conta o número de ocorrências encontradas de cada palavra e o número de linhas devolvidas de
+# cada palavra ou de todas as palavras
+
+# Dar return a:
+# - Quantas linhas contêm unicamente uma das palavras ou todas as palavras
+# - Nº de ocorrências por palavra
+# - Nº de linhas por palavra ou todas as palavras
+#
+# Quando -a está ativo:             |  Quando -a não está ativo :
+# - Total linhas só com 1 palavra   |  - Totla das linas só com 1 palavra e com todas
+#                                       V V V V V V V V V V V V
+# Quando -l está ativo com o -a     |  Quando -l está ativo sem o -a
+# - Total de linhas                 |  - Total de linhas por palavra
+#
+# Quando -c está ativo:
