@@ -8,7 +8,7 @@ from colorama import init, Fore, Style
 init() # Inicialização colorama
 
 mutex = Lock()
-total = [0, 0, 0] # Inicialização do contador global das palavras ( 3 palavras)
+total = [0, 0, 0] # Inicialização do contador global das palavras (máx. 3 palavras)
 
 ### Helpers
 def read_list(text: str) -> List[str]:
