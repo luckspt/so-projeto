@@ -1,14 +1,22 @@
-from re import compile, Pattern, findall
+from re import compile, findall
 from argparse import ArgumentParser
 from unicodedata import normalize, category
-from typing import List, Dict, Union, Generator, Tuple
+from typing import List, Dict, Union, Generator, Tuple, Pattern
 from threading import Thread, Lock
 from colorama import init, Fore, Style
+import signal, sys, time
 
 init() # Inicialização colorama
 
 mutex = Lock()
+
+#TODO:
+# Por cada ocorrência, adicionar +1:
 total = [0, 0, 0] # Inicialização do contador global das palavras (máx. 3 palavras)
+
+#TODO:
+# Por cada ficheiro completo, adicionar +1:
+ficheiros = [0, 0]
 
 ### Helpers
 def read_list(text: str) -> List[str]:
@@ -102,6 +110,10 @@ def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
                         help='Ficheiro(s), sobre o(s) qual(is) é efetuada a pesquisa e contagem. \
                             Por omissão, o comando pede o(s) ficheiro(s) ao utilizador.')
 
+    #TODO Completar esta merda
+    parser.add_argument('-w', type=int, default=0,
+                        help='Fode-te')
+
     args = parser.parse_args().__dict__
 
     # Args é passado como referência
@@ -116,7 +128,7 @@ def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
     :param args: Dicionário com argumentos por validar.
     """
     # Remover duplicados
-    args['palavras'] = tuple(set(strip_accents(word).lower() for word in args['palavras']))
+    args['palavras'] = tuple(set(strip_accents(word) for word in args['palavras']))
 
     # Impor limites
     if len(args['palavras']) > 3:
@@ -171,7 +183,7 @@ def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bo
     # For each line of file
     for i, line in enumerate(read_file(path)):
         # Remove diacritics and make lowercase for case-insensitive comparison
-        normalized_line = strip_accents(line).lower()
+        normalized_line = strip_accents(line)
 
         # Dicionário das ocorrências das palavras na linha i
         line_word_occurrences = { word: 0 for word, _ in words }
@@ -290,6 +302,7 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
     :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
                   e cujo False a quantidade de linhas.
     """
+
     for file_path in files:
         # Pesquisar e contar as palavras
         word_occurrences = search_file(file_path, words, all_words)
@@ -302,11 +315,19 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
         print_results(word_occurrences.keys(), all_words, count, vals)
         mutex.release()
 
+
+
+        if parar:
+            exit() #TODO nas threads
+
 def main():
     """
     Processa e divide a pesquisa/contagem de ficheiros por threads (se aplicável).
     """
     args = parse()
+
+    if args['w']: #TODO Verificar
+        tempo_comeca = time.clock()
 
     words = compile_words_regex(args['palavras'])
     for i in range(len(words)):
@@ -328,12 +349,44 @@ def main():
         for i in processos:
             i.join()
 
+    # asdasda
 
     # Imprimir total dos resultados
     if len(args['files']) > 1:
         print(f'{Fore.LIGHTRED_EX}Total:{Style.RESET_ALL}')
         # A partir do Python 3.7 os dicionários são ordenados, portanto pode-se usar a lista inicial das palavras
         print_results(args['palavras'], args['all'], args['count'])
+
+    signal.signal(signal.SIGINT, interrupcao)
+
+    if args['w']: #TODO Verificar
+        print((time.clock() - tempo_comeca)*1000000, "micro-segundos.")
+
+def interrupcao(sig, NULL):
+    # Faz print do que tem
+    # Mata o processo
+    print("Ctrl+C!")
+    sys.exit(0)
+
+##############PARTE 2###############
+
+def termina(sig,NULL):
+    global parar
+    parar = True
+    print("Ctrl+C")
+
+def tempo():
+    start = time.time()
+    print("hello")
+    end = time.time()
+    return print((end-start)*1000000)
+
+def filebinario():
+    with(open("file.txt","rb")) as inFile:
+        pass
+    return
+
+####################################
 
 if __name__ == '__main__':
     try:

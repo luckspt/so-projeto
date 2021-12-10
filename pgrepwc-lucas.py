@@ -1,17 +1,16 @@
 from argparse import ArgumentParser
-from unicodedata import normalize, category
-from typing import List, Dict, Union, Generator, Tuple, Pattern
-from multiprocessing import Array, Process, Lock
-from colorama import init, Fore, Style
-
-import signal
+from multiprocessing import Array, Lock, Process
+from re import compile, findall
+from typing import Dict, Generator, List, Pattern, Tuple, Union
+from unicodedata import category, normalize
+from subprocess import check_output
+from colorama import Fore, Style, init
+import signal, sys, time
 
 init() # Inicialização colorama
 
 mutex = Lock()
 total = Array("i", 3) # Inicialização do contador global das palavras (máx. 3 palavras)
-
-parar = False
 
 ### Helpers
 def read_list(text: str) -> List[str]:
@@ -32,19 +31,35 @@ def read_list(text: str) -> List[str]:
     # Partir os valores pelo espaço
     return files.split()
 
-def chunks(lst: List, n: int) -> Generator[List[str], None, None]:
+def chunks(files: List[str], n: int):
     """
     Gera dado número de combinações de elementos de uma lista.
 
-    :param lst: Lista a subdividir em combinações.
-    :param n: Int número máximo de elementos por combinação.
+    :param files: Lista de caminhos de ficheiros.
+    :param n: TODO escrever isto.
     :return: Gerador com a Lista de Strings com combinações
              de elementos de dada lista.
     """
-    for i in range(n):
-        yield lst[i::n]
+    chars_files = [wc(file_path) for file_path in files]
+    chars_total = sum(chars_files)
+    chars_process = chars_total // n # TODO arredondar acima ou abaixo?
 
-def read_file(path: str) -> Generator[str, None, None]:
+    """
+    a prof diz que se pode ler o ficheiro no pai para saber a qtd linhas (e saber a posição de cada para o seek)
+        vale a pena ser justo no comprimento da linha ou basta na qtd linhas?
+        pode-se usar isso e passar como argumento para o filho, para ele saber que ficheiros tem de processar e em que posição
+    
+        qdo se lê o ficheiro fazer um seek() para ter a certeza que se está na linha certa mesmo havendo vários processos no mesmo ficheiro
+    """
+    print('asd')
+
+
+# TRAB2
+# fazer o offset, yield das proximas linhas
+# read_line() para consumir a linha só se não for 0
+# confirmar que não é preciso mais seeks
+
+def read_file(path: str, file_offset: int) -> Generator[str, None, None]:
     """
     Lê um ficheiro de dado caminho.
 
@@ -52,8 +67,21 @@ def read_file(path: str) -> Generator[str, None, None]:
     :return: Gerador com a String de uma linha do ficheiro.
     """
     with open(path) as f:
-        for line in f:
-            yield line
+        # while True:
+        #     f.seek(file_offset, 0)
+        #     line = f.readline()
+        #     if line:
+        #         file_offset += len(line)
+        #             yield line
+        #     else:
+        #         break
+        pass
+
+def wc(path: str):
+    return int(check_output(['wc', '-c', path]).split()[0])
+
+chars = wc('data/file0.txt')
+file_offset = chars / 2
 
 def strip_accents(s: str) -> str:
     """
@@ -171,8 +199,8 @@ def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bo
 
     # For each line of file
     for i, line in enumerate(read_file(path)):
-        # Remove diacritics and make lowercase for case-insensitive comparison
-        normalized_line = strip_accents(line).lower()
+        # Remove diacritics
+        normalized_line = strip_accents(line)
 
         # Dicionário das ocorrências das palavras na linha i
         line_word_occurrences = { word: 0 for word, _ in words }
@@ -287,7 +315,6 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
     :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
                   e cujo False a quantidade de linhas.
     """
-
     for file_path in files:
         # Pesquisar e contar as palavras
         word_occurrences = search_file(file_path, words, all_words)
@@ -300,14 +327,18 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
         print_results(word_occurrences.keys(), all_words, count, vals)
         mutex.release()
 
-        if parar:
-            exit()
-
 def main():
     """
     Processa e divide a pesquisa/contagem de ficheiros por processos (se aplicável).
     """
-    args = parse()
+    # args = parse()
+    args = {
+        'palavras': ['batatas', 'milho', 'antonio'],
+        'all': False,
+        'count': True,
+        'files': ['data/file0.txt'],
+        'parallelization': 3
+    }
 
     words = compile_words_regex(args['palavras'])
     for i in range(len(words)):
@@ -347,5 +378,6 @@ def interrupcao(sig, NULL):
 if __name__ == '__main__':
     try:
         main()
+        pass
     except UserWarning as w:
         print(w)
