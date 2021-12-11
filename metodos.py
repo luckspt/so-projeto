@@ -1,20 +1,90 @@
+
+from typing import List, Generator, Dict, Union, Tuple, Pattern
+
+from math import ceil
+from colorama import Fore, Style
+from re import findall, compile
 from argparse import ArgumentParser
-from unicodedata import normalize, category
-from re import findall
-from typing import List, Dict, Union, Generator, Tuple, Pattern
-from multiprocessing import Array, Process, Lock
-from colorama import init, Fore, Style
-
-import signal
-
-init() # Inicialização colorama
+from unicodedata import category, normalize
+from multiprocessing import Array, Lock
 
 mutex = Lock()
 total = Array("i", 3) # Inicialização do contador global das palavras (máx. 3 palavras)
 
-parar = False
+# Ficheiro com métodos partilhados pelos ficheiros do projeto
 
-### Helpers
+def chunks(files: List[Tuple[str, int, List[int]]], total_lines: int, n: int) -> List[List[Dict[str, Union[str, int]]]]:
+    """
+    Gera dado número de combinações de elementos de uma lista.
+
+    :param files: Lista de tuplos em que a primeira posição representa o caminho do ficheiro, a segunda a quantidade de linhas, e a última a lista de posições do inicio da linha i
+    :param total_lines: Quantidade total de linhas
+    :param n: Paralelizaçõo
+    :return: Lista do que cada processo deve processar.
+            A lista interior representa j ficheiros a processar pelo processo i
+            A lista mais interior representa o caminho do ficheiro, a posição em que irá começar e a posição em que irá acabar (se esta for -1, é até ao fim)
+    """
+    file_idx = 0
+    file_lines = 0
+
+    lines_each = ceil(total_lines / n)
+    current_lines = 0
+
+    res = [
+        [
+            { 'path': files[file_idx][0],
+              'start': 0,
+              'end': -1 }
+        ]
+    ]
+    """
+    [
+        processo_i [
+            ficheiro_j [
+                { path: str, start: int, end: int } 
+            ]
+        ]
+    ]
+    """
+
+    # TODO melhorar o file_idx < len(files)
+
+    # Enquanto o ficheiro não tiver sido totalmente atribuido
+    while file_idx < len(files) and file_lines < files[file_idx][1]:
+        to_add = min(lines_each, files[file_idx][1] - file_lines)
+
+        file_lines += to_add
+        current_lines += to_add
+
+        eof = file_lines >= files[file_idx][1]
+        if not eof:
+            res[-1][-1]['end'] = files[file_idx][2][file_lines]
+
+        # TODO == ?
+        next_process = current_lines >= lines_each
+        # Passar ao próximo ficheiro
+        if eof:
+            file_lines = 0
+            file_idx += 1
+            if not next_process and file_idx < len(files):
+                res[-1].append(
+                    { 'path': files[file_idx][0],
+                      'start': 0,
+                      'end': -1 } )
+
+        # Passar ao próximo processo
+        if next_process and file_idx < len(files):
+            current_lines = 0
+            res.append(
+                [
+                    {'path': files[file_idx][0],
+                     'start': files[file_idx][2][file_lines],
+                     'end': -1}
+                ]
+            )
+
+    return res
+
 def read_list(text: str) -> List[str]:
     """
     Lê e divide uma linha do stdin.
@@ -33,28 +103,16 @@ def read_list(text: str) -> List[str]:
     # Partir os valores pelo espaço
     return files.split()
 
-def chunks(lst: List, n: int) -> Generator[List[str], None, None]:
-    """
-    Gera dado número de combinações de elementos de uma lista.
+def file_lines_pos(path: str) -> Tuple[int, List[int]]:
+    line_offset = []
+    offset = 0
 
-    :param lst: Lista a subdividir em combinações.
-    :param n: Int número máximo de elementos por combinação.
-    :return: Gerador com a Lista de Strings com combinações
-             de elementos de dada lista.
-    """
-    for i in range(n):
-        yield lst[i::n]
-
-def read_file(path: str) -> Generator[str, None, None]:
-    """
-    Lê um ficheiro de dado caminho.
-
-    :param path: String com o caminho do ficheiro a ler.
-    :return: Gerador com a String de uma linha do ficheiro.
-    """
     with open(path) as f:
         for line in f:
-            yield line
+            line_offset.append(offset)
+            offset += len(line)
+
+    return len(line_offset), line_offset
 
 def strip_accents(s: str) -> str:
     """
@@ -66,7 +124,27 @@ def strip_accents(s: str) -> str:
     return ''.join(c for c in normalize('NFD', s)
                   if category(c) != 'Mn')
 
-### Parsing
+def read_file(file: Dict[str, Union[str, int]]) -> Generator[str, None, None]:
+    """
+    Lê um ficheiro de dado caminho.
+
+    :param file: Dicionário com o path, o start e end de um ficheiro
+    :return: Gerador com a String de uma linha do ficheiro.
+    """
+    offset = file['start']
+    with open(file['path']) as f:
+        while True:
+            if file['end'] != -1 and offset >= file['end']:
+                break
+
+            f.seek(offset, 0)
+            line = f.readline()
+            if line:
+                offset += len(line)
+                yield line
+            else:
+                break
+
 def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
     """
     Define o parser de argumentos.
@@ -150,7 +228,7 @@ def compile_words_regex(words: Tuple[str]) -> List[Tuple[str, Pattern]]:
     # usar o compile da biblioteca re para melhor desempenho, ao invés de definir o regex das palavras em cada linha de cada ficheiro
     return [ (word, compile(f'\\b{word}\\b')) for word in words ]
 
-def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bool) -> Dict[str, Dict[int, int]]:
+def search_file(file: Dict[str, Union[str, int]], words: List[Tuple[str, Pattern]], all_words: bool) -> Dict[str, Dict[int, int]]:
     """
     Pesquisa e conta ocorrências de dada(s) palavra(s) num ficheiro.
 
@@ -163,24 +241,24 @@ def search_file(path: str, words: List[Tuple[str, List[Pattern]]], all_words: bo
     """
     # Dicionário das ocorrências das palavras em cada linha
     occurrences = { word: {} for word, _ in words }
-    '''
+    """
         Chave: palavra
         Valor: Dict
                 Chave: índice da linha
                 Valor: Quantidade de ocorrências [da palavra] nessa linha
-    '''
+    """
 
     # For each line of file
-    for i, line in enumerate(read_file(path)):
-        # Remove diacritics and make lowercase for case-insensitive comparison
-        normalized_line = strip_accents(line).lower()
+    for i, line in enumerate(read_file(file)):
+        # Remove diacritics
+        normalized_line = strip_accents(line)
 
         # Dicionário das ocorrências das palavras na linha i
         line_word_occurrences = { word: 0 for word, _ in words }
-        '''
+        """
             Chave: palavra
             Valor: Quantidade de ocorrências [da palavra] na linha i
-        '''
+        """
 
         for word, regex in words:
             # Guardar a quantidade de ocorrências da palavra word na linha i
@@ -276,7 +354,7 @@ def commit_results(word_occurrences: Dict[str, Dict[int, int]], all_words: bool,
                 mutex.release()
     return ret
 
-def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words: bool, count: bool):
+def process_files(files: List[Dict[str, Union[str, int]]], words: List[Tuple[str, Pattern]], all_words: bool, count: bool):
     """
     Processa e imprime resultados da pesquisa/contagem de dadas palavras em dados ficheiros.
 
@@ -288,65 +366,15 @@ def process_files(files: List[str], words: List[Tuple[str, Pattern]], all_words:
     :param count: Bool cujo True representa se é impressa a quantidade de ocorrências
                   e cujo False a quantidade de linhas.
     """
-
-    for file_path in files:
+    print(files)
+    for file in files:
         # Pesquisar e contar as palavras
-        word_occurrences = search_file(file_path, words, all_words)
+        word_occurrences = search_file(file, words, all_words)
         # Processar e guardar os resultados no Array total
         vals = commit_results(word_occurrences, all_words, count)
         # Imprimir resultados
 
         mutex.acquire()
-        print(f'{Fore.LIGHTMAGENTA_EX}Ficheiro {file_path}:{Style.RESET_ALL}')
+        print(f'{Fore.LIGHTMAGENTA_EX}Ficheiro {file["path"]}:{Style.RESET_ALL}')
         print_results(word_occurrences.keys(), all_words, count, vals)
         mutex.release()
-
-        if parar:
-            exit()
-
-def main():
-    """
-    Processa e divide a pesquisa/contagem de ficheiros por processos (se aplicável).
-    """
-    args = parse()
-
-    words = compile_words_regex(args['palavras'])
-    for i in range(len(words)):
-        total[i] = 0
-
-    # O pai faz a pesquisa e contagem quando parallelization é 0
-    if args['parallelization'] == 0:
-        process_files(args['files'], words, args['all'], args['count'])
-    else:
-        # dividir a lista de ficheiros em args['parallelization'] sub-listas
-        children_files = list(chunks(args['files'], args['parallelization']))
-
-        processos = []
-        for child_files in children_files:
-            processos.append( Process(target=process_files, args=(child_files, words, args['all'], args['count'])) )
-
-        for i in processos:
-            i.start()
-        for i in processos:
-            i.join()
-
-
-    # Imprimir total dos resultados
-    if len(args['files']) > 1:
-        print(f'{Fore.LIGHTRED_EX}Total:{Style.RESET_ALL}')
-        # A partir do Python 3.7 os dicionários são ordenados, portanto pode-se usar a lista inicial das palavras
-        print_results(args['palavras'], args['all'], args['count'])
-
-    signal.signal(signal.SIGINT, interrupcao)
-
-
-def interrupcao(sig, NULL):
-    global parar
-    parar = True
-
-
-if __name__ == '__main__':
-    try:
-        main()
-    except UserWarning as w:
-        print(w)
