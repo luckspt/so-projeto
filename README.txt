@@ -8,7 +8,6 @@ PGREPWC
 Utilização:
 • pgrepwc [-a] [-c|-l] [-p n] [-w s] [-o file] {palavras} [-f ficheiros]
 
-
 Funcionalidades:
 • Suporta paralelismo de processos.
 • Garantia de isenção de repetições da pesquisa/contagem de palavras com o método chunks.
