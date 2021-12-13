@@ -7,9 +7,20 @@ from multiprocessing import Process, Value, Array, Lock, Pipe, current_process
 from math import ceil
 from re import findall, compile
 from argparse import ArgumentParser
+<<<<<<< HEAD
 from unicodedata import category, normalize
 from signal import signal, SIGINT
 from threading import Thread
+=======
+from unicodedata import normalize, category
+from re import findall
+from typing import List, Dict, Union, Generator, Tuple, Pattern
+from multiprocessing import Array, Process, Lock
+from colorama import init, Fore, Style
+from datetime import date
+
+import signal
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
 
 from colorama import Fore, Style, init
 init() # Inicialização colorama
@@ -117,7 +128,6 @@ def chunks(files: List[Tuple[str, int, List[int]]], total_lines: int, n: int) ->
 def read_list(text: str) -> List[str]:
     """
     Lê e divide uma linha do stdin.
-
     :param text: String com a mensagem a mostrar ao utilizador.
     :return: Lista de Strings com os elementos da linha.
     """
@@ -134,13 +144,22 @@ def read_list(text: str) -> List[str]:
 
 def file_lines_pos(path: str) -> Tuple[int, List[int]]:
     """
+<<<<<<< HEAD
     Em que posição começa a linha i
     :param path: Caminho do ficheiro
     :return: Lista das posições do início da linha i do ficheiro
+=======
+    Gera dado número de combinações de elementos de uma lista.
+    :param lst: Lista a subdividir em combinações.
+    :param n: Int número máximo de elementos por combinação.
+    :return: Gerador com a Lista de Strings com combinações
+             de elementos de dada lista.
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
     """
     line_offset = []
     offset = 0
 
+<<<<<<< HEAD
     try:
         with open(path, 'r', encoding='utf-8') as f:
             for line in f:
@@ -157,6 +176,23 @@ def strip_accents(s: str) -> str:
 
     :param s: String a remover os caracteres.
     :return: String sem os caracteres.
+=======
+def read_file(path: str) -> Generator[str, None, None]:
+    """
+    Lê um ficheiro de dado caminho.
+    :param path: String com o caminho do ficheiro a ler.
+    :return: Gerador com a String de uma linha do ficheiro.
+    """
+    with open(path) as f:
+        for line in f:
+            yield line
+
+def strip_accents(s: str) -> str:
+    """
+    Remove acentos de dada string.
+    :param s: String a remover os acentos.
+    :return: String sem acentos.
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
     """
     return ''.join(c for c in normalize('NFD', s)
                   if category(c) != 'Mn')
@@ -189,7 +225,6 @@ def read_file(file: Dict[str, Union[str, int]]) -> Generator[str, None, None]:
 def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
     """
     Define o parser de argumentos.
-
     :return: Dict com valores dos argumentos escolhidos pelo utilizador.
     """
     parser = ArgumentParser(description='Pesquisa até três palavras em pelo menos um ficheiro, \
@@ -242,7 +277,6 @@ def parse() -> Dict[str, Union[str, int, bool, Tuple[str]]]:
 def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
     """
     Valida argumentos e remove duplicados.
-
     :param args: Dicionário com argumentos por validar.
     """
     # Remover duplicados
@@ -268,8 +302,12 @@ def validate_args(args: Dict[str, Union[str, int, bool, List[str]]]) -> None:
 
 def compile_words_regex(words: Tuple[str]) -> List[Tuple[str, Pattern]]:
     """
+<<<<<<< HEAD
     Compila as palavras em expressões regulares para melhorar desempenho.
 
+=======
+    Compila diferentes formatos de palavras, reconhecendo-os como as mesmas palavras.
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
     :param words: Tuplo de Strings com palavras a compilar.
     :return: Lista de tuplos com par String palavra e a sua Pattern expressão regular.
     """
@@ -279,7 +317,6 @@ def compile_words_regex(words: Tuple[str]) -> List[Tuple[str, Pattern]]:
 def search_file(file: Dict[str, Union[str, int]], words: List[Tuple[str, Pattern]], all_words: bool) -> Dict[str, Dict[int, int]]:
     """
     Pesquisa e conta ocorrências de dada(s) palavra(s) num ficheiro.
-
     :param path: String com o caminho do ficheiro.
     :param words: Lista de tuplos com pares String palavra e a sua Pattern
                   expressão regular a pesquisar/contar.
@@ -340,7 +377,6 @@ def search_file(file: Dict[str, Union[str, int]], words: List[Tuple[str, Pattern
 def print_results(words: List[str], all_words: bool, count: bool, val: List[str] = None) -> None:
     """
     Imprime resultados para o stdout.
-
     :param words: Lista de Strings com palavra(s).
     :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
                       com todas as palavras dadas.
@@ -365,8 +401,12 @@ def print_results(words: List[str], all_words: bool, count: bool, val: List[str]
 
 def commit_results(word_occurrences: Dict[str, Dict[int, int]], all_words: bool, count: bool) -> List[int]:
     """
+<<<<<<< HEAD
     Mapeia as ocorrências dependendo dos argumentos do utilizador e incrementa os resultados globais.
 
+=======
+    Calcula e regista os resultados globais.
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
     :param word_occurrences: Dicionário com as ocorrências das palavras em cada linha.
     :param all_words: Bool cujo True representa se a pesquisa/contagem deve apenas
                       com todas as palavras dadas.
@@ -406,7 +446,6 @@ def commit_results(word_occurrences: Dict[str, Dict[int, int]], all_words: bool,
 def process_files(files: List[Dict[str, Union[str, int]]], words: List[Tuple[str, Pattern]], all_words: bool, count: bool) -> None:
     """
     Processa e imprime resultados da pesquisa/contagem de dadas palavras em dados ficheiros.
-
     :param files: Lista de Strings com o caminho dos ficheiros.
     :param words: Lista de tuplos com pares String palavra e a sua Pattern
                   expressão regular a pesquisar/contar.
@@ -601,6 +640,7 @@ def main() -> None:
         # A partir do Python 3.7 os dicionários são ordenados, portanto pode-se usar a lista inicial das palavras
         print_results(args['palavras'], args['all'], args['count'])
 
+<<<<<<< HEAD
     # Escrever para fichiro binário
     if args['output']:
         output(args['output'],
@@ -650,6 +690,57 @@ def output(path: str, start: int, duration: int, parallelization: int, all_words
 
     with open(path, 'wb') as file:
         dump(out, file)
+=======
+    signal.signal(signal.SIGINT, interrupcao)
+
+
+def interrupcao(sig, NULL):
+    global parar
+    parar = True
+
+###################### OPÇÃO -O ########################
+
+with open('file.txt', 'rb') as file:
+    contents = file.read()
+
+estadoA = "N/D"
+#TODO pegar no argumento "a" e ver se tem algum valor
+if args.a != None:
+    estadoA = "Sim"
+else:
+    estadoA = "Não"
+
+contents =  f"""
+            Inicio da execução da pesquisa: {date.today().strftime("%d/%m/%Y")}, {date.today().strftime("%H:%M:%S:%f")} \r\n
+            Duração da execução: _ \r\n
+            \r\n
+            Número de processos filhos: _ \r\n
+            \r\n
+            Opção -a ativa: {estadoA} \r\n
+            \r\n
+            Emissão de alarmes no intervalo de _ segundos \r\n
+            \r\n
+            """
+
+# Parte a iterar p/ficheiro
+ficheiros = f"""
+             Processos: _ \r\n
+                ficheiro: _ \r\n
+                    tempo de pesquisa: _ \r\n
+                    dimensão do ficheiro: _ \r\n
+                    número de _ da palavra_1: _ \r\n
+                    número de _ da palavra_2: _ \r\n
+                    número de _ da paalvra_3: _ \r\n
+                ficheiro: _ \r\n
+            \r\n
+            """
+
+with open('file2.txt', 'wb') as file:
+    file.write(contents)
+
+########################################################
+
+>>>>>>> d67a5d372915b817c71466796d2893831dac3e1e
 
 if __name__ == '__main__':
     try:
