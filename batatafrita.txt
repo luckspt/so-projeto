@@ -1,0 +1,8 @@
+start 1639345455
+words ['batatas', 'milho', 'antonio']
+duration 1490090
+children 1
+all False
+count True
+interval 1
+processes [{'pid': 31254, 'files': [{'path': 'file0.txt', 'duration': 177, 'lines': 9, 'occurrences': [1, 0, 0]}, {'path': 'file0_0.txt', 'duration': 54, 'lines': 6, 'occurrences': [0, 0, 0]}, {'path': 'fgrande.txt', 'duration': 1467812, 'lines': 1000109, 'occurrences': [2, 53, 0]}]}]
